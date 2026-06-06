@@ -12,9 +12,12 @@ with st.sidebar:
 
 @st.cache_resource
 def train_heart_model():
-    # Using your local dataset
     df = pd.read_csv("heart.csv")
-    X, y = df.drop(columns=['target']), df['target']
+    ui_features = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs']
+    
+    X = df[ui_features]
+    y = df['target']
+    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
@@ -49,8 +52,9 @@ if selected_system == "❤️ Heart Disease":
         fbs_val = 1 if "Yes" in fbs else 0
 
     if st.button("Run Heart Analysis", type="primary"):
-        input_data = [[age, sex_val, cp, trestbps, chol, fbs_val, 0, 150, 0, 1.0, 1, 0, 2]]
+        input_data = [[age, sex_val, cp, trestbps, chol, fbs_val]]
         prediction = heart_classifier.predict(input_data)
+        
         if prediction[0] == 1:
             st.error("⚠️ High Cardiovascular Risk Detected.")
         else:
