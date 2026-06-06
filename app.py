@@ -2,56 +2,77 @@ import streamlit as st
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+st.set_page_config(page_title="Multi-Disease AI Predictor", page_icon="⚕️", layout="wide")
 
-st.set_page_config(page_title="CardioCare AI", page_icon="🫀", layout="centered")
-
-st.title("🫀 CardioCare: AI Heart Disease Screening")
-st.markdown("**Developed by Izzat Sinan Shahidi (f2023-024)** | AI Lab Project")
-st.info("Aligned with UN SDG 3: Good Health & Well-being. This tool provides a rapid, preliminary cardiovascular risk assessment using Machine Learning.")
-
-@st.cache_resource # Makes the app load instantly after the first run
-def train_model():
-    health_data = pd.read_csv("heart.csv")
-    
-    X_features = health_data.drop(columns=['target'])
-    y_target = health_data['target']
-    
-    X_train, X_test, y_train, y_test = train_test_split(X_features, y_target, test_size=0.2, random_state=42)
-    
-    rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
-    rf_classifier.fit(X_train, y_train)
-    return rf_classifier
-
-classifier = train_model()
-
-st.sidebar.header("📋 Patient Vitals Input")
-
-with st.sidebar.expander("Basic Demographics", expanded=True):
-    patient_age = st.number_input("Age", min_value=20, max_value=100, value=50)
-    patient_sex = st.selectbox("Biological Sex", options=["Male (1)", "Female (0)"])
-    sex_val = 1 if "Male" in patient_sex else 0
-
-with st.sidebar.expander("Clinical Metrics", expanded=True):
-    chest_pain = st.slider("Chest Pain Type (0=None, 3=Severe)", 0, 3, 1)
-    blood_pressure = st.number_input("Resting Blood Pressure (mmHg)", min_value=80, max_value=200, value=120)
-    cholesterol = st.number_input("Serum Cholesterol (mg/dl)", min_value=100, max_value=400, value=200)
-    fasting_bs = st.selectbox("Fasting Blood Sugar > 120 mg/dl?", options=["No (0)", "Yes (1)"])
-    fbs_val = 1 if "Yes" in fasting_bs else 0
-baseline_metrics = [0, 150, 0, 1.0, 1, 0, 2]
-
-st.markdown("### 🔍 Risk Analysis Engine")
-st.write("Enter the patient's vitals in the sidebar and click the button below to run the Random Forest classification algorithm.")
-
-if st.button("Generate Diagnostic Report", type="primary"): 
-    patient_profile = [[patient_age, sex_val, chest_pain, blood_pressure, cholesterol, fbs_val] + baseline_metrics] 
-    
-    with st.spinner('Analyzing patient data...'):
-        risk_prediction = classifier.predict(patient_profile)
-    
+with st.sidebar:
+    st.title("⚕️ AI Diagnostic Tools")
+    st.write("Developed by Izzat Sinan Shahidi (f2023-024)")
     st.divider()
-    if risk_prediction[0] == 1:
-        st.error("#### ⚠️ High Cardiovascular Risk Detected")
-        st.write("The model indicates a high probability of heart disease based on the provided metrics. Immediate clinical consultation is recommended.")
-    else:
-        st.success("#### ✅ Low Cardiovascular Risk")
-        st.write("The model indicates a low probability of heart disease. Maintain a healthy lifestyle and continue routine checkups.")
+    selected_system = st.radio("Select Screening Module:", ["❤️ Heart Disease", "🩸 Diabetes"])
+
+@st.cache_resource
+def train_heart_model():
+    # Using your local dataset
+    df = pd.read_csv("heart.csv")
+    X, y = df.drop(columns=['target']), df['target']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    return model
+
+@st.cache_resource
+def train_diabetes_model():
+    df = pd.read_csv("diabetes.csv")
+    X, y = df.drop(columns=['Outcome']), df['Outcome']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    return model
+
+heart_classifier = train_heart_model()
+diabetes_classifier = train_diabetes_model()
+
+if selected_system == "❤️ Heart Disease":
+    st.title("❤️ Cardiovascular Risk Assessment")
+    st.info("Analyzes patient vitals to determine the likelihood of heart disease.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        age = st.number_input("Age", 20, 100, 50)
+        sex = st.selectbox("Sex", ["Male (1)", "Female (0)"])
+        sex_val = 1 if "Male" in sex else 0
+        cp = st.slider("Chest Pain Type (0-3)", 0, 3, 1)
+    with col2:
+        trestbps = st.number_input("Resting Blood Pressure", 80, 200, 120)
+        chol = st.number_input("Cholesterol", 100, 400, 200)
+        fbs = st.selectbox("Fasting Blood Sugar > 120?", ["No (0)", "Yes (1)"])
+        fbs_val = 1 if "Yes" in fbs else 0
+
+    if st.button("Run Heart Analysis", type="primary"):
+        input_data = [[age, sex_val, cp, trestbps, chol, fbs_val, 0, 150, 0, 1.0, 1, 0, 2]]
+        prediction = heart_classifier.predict(input_data)
+        if prediction[0] == 1:
+            st.error("⚠️ High Cardiovascular Risk Detected.")
+        else:
+            st.success("✅ Low Cardiovascular Risk.")
+
+elif selected_system == "🩸 Diabetes":
+    st.title("🩸 Diabetes Onset Prediction")
+    st.info("Analyzes metabolic metrics to predict the likelihood of diabetes.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        age_d = st.number_input("Patient Age", 1, 100, 30)
+        glucose = st.number_input("Glucose Level", 0, 300, 110)
+        blood_pressure_d = st.number_input("Blood Pressure (Diastolic)", 0, 150, 70)
+    with col2:
+        bmi = st.number_input("BMI (Body Mass Index)", 0.0, 70.0, 25.0)
+        insulin = st.number_input("Insulin Level", 0, 900, 80)
+    
+    if st.button("Run Diabetes Analysis", type="primary"):
+        input_data = [[1, glucose, blood_pressure_d, 20, insulin, bmi, 0.5, age_d]]
+        prediction = diabetes_classifier.predict(input_data)
+        if prediction[0] == 1:
+            st.error("⚠️ High Risk of Diabetes Detected.")
+        else:
+            st.success("✅ Low Risk of Diabetes.")
